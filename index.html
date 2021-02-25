@@ -6,99 +6,29 @@
     <meta http-equiv="X-UA-Compatible" content="IE=edge">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Document</title>
+    <style>
+        #VideoShow video {
+            width: 50%;
+            float: left;
+        }
+    </style>
 </head>
 
 <body>
-    <script>
-        (function () {
-            var ws;
+    <div>
+        <label id="LoginState">登录状态：未登录</label>
+        <br>
+        <label for="username">参与通话的用户名：</label>
+        <input type="text" name="username" id="username">
+        <button id="Login">登录</button>
+    </div>
+    <div id="UserList">
 
-            function InitWebSocket() {
-                ws = new WebSocket("ws://localhost:8001");
-                ws.onmessage = (e) => {
-                    var conn = JSON.parse(e.data)
-                    if (conn.target == 'pc2') {
-                        Respond(conn)
-                    } else if (conn.target == 'pc1') {
-                        pc1.setRemoteDescription(conn.sdp)
-                    }
-                    if (conn.type == 'ICE') {
-                        var candidate = new RTCIceCandidate(conn.candidate)
-                        if (conn.targetICE === 'pc1') {
-                            pc1.addIceCandidate(candidate).catch(err => {})
-                        } else {
-                            pc2.addIceCandidate(candidate).catch(err => {})
-                        }
-                    }
-                }
-            }
+    </div>
+    <div id="VideoShow">
 
-            function Respond(conn) {
-                pc2.setRemoteDescription(conn.sdp).then(() => {
-                    pc2.createAnswer().then((answer) => {
-                        pc2.setLocalDescription(answer).then(() => {
-                            ws.send(JSON.stringify({
-                                name: "pc2",
-                                target: "pc1",
-                                sdp: pc2.localDescription
-                            }))
-                        })
-                    })
-                })
-            }
-            var isOne = false;
-
-            function InitRTC() {
-                var pc = new RTCPeerConnection();
-                pc.onicecandidate = (e) => {
-                    if (e.candidate) {
-                        ws.send(JSON.stringify({
-                            type: 'ICE',
-                            candidate: e.candidate,
-                            targetICE: pc.name === 'pc1' ? 'pc2' : 'pc1'
-                        }))
-                    }
-                }
-                pc.onaddstream = function (obj) {
-                    var vid = document.createElement("video");
-                    vid.setAttribute("autoplay", "autoplay");
-                    document.body.appendChild(vid);
-                    vid.srcObject = obj.stream;
-                }
-                pc.name = isOne ? 'pc1' : 'pc2'
-                if (isOne) isOne = true
-                return pc;
-            }
-            var pc1 = InitRTC();
-            var pc2 = InitRTC();
-            InitWebSocket();
-            var offerbtn = document.createElement('button');
-            offerbtn.textContent = "发送请求";
-            offerbtn.addEventListener('click', e => {
-                navigator.mediaDevices.getDisplayMedia({
-                    video: true,
-                    audio: true
-                }).then(stream => {
-                    // pc1.onaddstream({stream: stream});
-                    // 为当前的 pc1 创建视频流 该方法不会触发 onaddstrream 事件
-                    pc1.addStream(stream)
-                    // 创建 邀请 offer 完成后设置当前 pc1 的 连接相关的本地描述(及SDP) 比如：连接的编码方式
-                    pc1.createOffer().then((offer) => {
-                        return pc1.setLocalDescription(offer)
-                    }).then(() => {
-                        ws.send(JSON.stringify({
-                            name: "pc1",
-                            target: "pc2",
-                            sdp: pc1.localDescription
-                        }))
-                    })
-                }).catch(err => {
-                    console.log(err);
-                })
-            })
-            document.body.appendChild(offerbtn);
-        })()
-    </script>
+    </div>
+    <script src="./client.js"></script>
 </body>
 
 </html>

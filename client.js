@@ -10,8 +10,16 @@
     this.userDiv;
     this.init = function () {
       this.GetDominstance();
-
-      this.myPhone = new RTCPeerConnection();
+      this.myPhone = new RTCPeerConnection({
+        iceServers: [
+          {
+            urls: "turn:134.175.227.69:3478",
+            username: "SLOE",
+            credential: "mgdowoqu741",
+            credentialType: "password",
+          },
+        ],
+      });
       this.myPhone.onaddstream = function (e) {
         var videoShow = document.createElement("video");
         videoShow.setAttribute("autoplay", "autoplay");
@@ -49,7 +57,7 @@
     this.IsLogin = false;
     this.Login = function (UserName) {
       var self = this;
-      ws = new WebSocket("ws://192.168.2.8:8001");
+      ws = new WebSocket("ws://aab.free.idcfengye.com");
       ws.onopen = function () {
         ws.send(JSON.stringify({ type: "Login", UserName }));
         self.IsLogin = true;
@@ -75,12 +83,9 @@
                   div.textContent = u;
                   div.addEventListener("click", function () {
                     if (this.textContent !== self.UserName) {
-                      navigator.mediaDevices
-                        .getDisplayMedia({
-                          video: true,
-                          audio: true,
-                        })
-                        .then((stream) => {
+                      navigator.getUserMedia(
+                        { video: true, audio: true },
+                        (stream) => {
                           self.myPhone.onaddstream({ stream });
                           self.myPhone.addStream(stream);
                           self.myPhone
@@ -99,7 +104,11 @@
                                 })
                               );
                             });
-                        });
+                        },
+                        (err) => {
+                          console.log(err);
+                        }
+                      );
                     } else {
                       alert("我不能让你自己跟自己打电话啊，那太令人疑惑了");
                     }
@@ -116,15 +125,13 @@
             break;
           case "offer":
             self.TargetUserName = msg.name;
-            navigator.mediaDevices
-              .getDisplayMedia({
-                video: true,
-                audio: true,
-              })
-              .then((stream) => {
-                self.myPhone.onaddstream({ stream });
-                self.myPhone.addStream(stream);
-                self.myPhone.setRemoteDescription(msg.sdp).then(() => {
+            var desc = new RTCSessionDescription(msg.sdp);
+            self.myPhone.setRemoteDescription(desc).then(() => {
+              return navigator.getUserMedia(
+                { video: true, audio: true },
+                (stream) => {
+                  self.myPhone.onaddstream({ stream });
+                  self.myPhone.addStream(stream);
                   self.myPhone.createAnswer().then((answer) => {
                     self.myPhone.setLocalDescription(answer).then(() => {
                       ws.send(
@@ -137,11 +144,16 @@
                       );
                     });
                   });
-                });
-              });
+                },
+                (err) => {
+                  console.log(err);
+                }
+              );
+            });
             break;
           case "answer":
-            self.myPhone.setRemoteDescription(msg.sdp);
+            var desc = new RTCSessionDescription(msg.sdp);
+            self.myPhone.setRemoteDescription(desc);
             break;
           default:
             break;
